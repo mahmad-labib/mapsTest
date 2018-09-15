@@ -1,79 +1,77 @@
 import React, { Component } from 'react';
 import { StyleSheet, Dimensions } from 'react-native';
-import MapView, { PROVIDER_GOOGLE } from 'react-native-maps';
+import MapView, { PROVIDER_GOOGLE, Marker } from 'react-native-maps';
 
 let { width, height } = Dimensions.get('window');
-const ASPECT_RATIO = width / height;
-const LATITUDE = 0;
-const LONGITUDE = 0;
-const LATITUDE_DELTA = 0.0922;
-const LONGITUDE_DELTA = LATITUDE_DELTA * ASPECT_RATIO;
 
 export default class MapExample extends Component {
     constructor() {
         super();
         this.state = {
             region: {
-                latitude: LATITUDE,
-                longitude: LONGITUDE,
-                latitudeDelta: LATITUDE_DELTA,
-                longitudeDelta: LONGITUDE_DELTA,
+                latitude: 0,
+                longitude: 0,
+                latitudeDelta: 0,
+                longitudeDelta: 0,
+                accuracy: 0
             }
         };
     }
-    componentDidMount() {
-        navigator.geolocation.getCurrentPosition(
+    calDelta(lat, long, accuracy) {
+        const oneDegreeOfLatitudeInMeters = 111.32 * 1000;
+        const latDelta = accuracy / oneDegreeOfLatitudeInMeters;
+        const longDelta = accuracy / (oneDegreeOfLatitudeInMeters * Math.cos(lat * (Math.PI / 180)));
+
+        this.setState({
+            region: {
+                latitude: lat,
+                longitude: long,
+                latitudeDelta: latDelta,
+                longitudeDelta: longDelta,
+                accuracy: accuracy,
+            },
+        });
+    }
+    componentWillMount() {
+        this.watchID = navigator.geolocation.getCurrentPosition(
             position => {
-                this.setState({
-                    region: {
-                        latitude: position.coords.latitude,
-                        longitude: position.coords.longitude,
-                        latitudeDelta: LATITUDE_DELTA,
-                        longitudeDelta: LONGITUDE_DELTA,
-                    }
-                });
+                this.calDelta(
+                    position.coords.latitude, position.coords.longitude, position.coords.accuracy
+                );
             },
             (error) => console.log(error.message),
             { enableHighAccuracy: true, timeout: 20000, maximumAge: 1000 },
-        );
-        this.watchID = navigator.geolocation.watchPosition(
-            position => {
-                this.setState({
-                    region: {
-                        latitude: position.coords.latitude,
-                        longitude: position.coords.longitude,
-                        latitudeDelta: LATITUDE_DELTA,
-                        longitudeDelta: LONGITUDE_DELTA,
-                    }
-                });
-            }
-        );
+        )
     }
     componentWillUnmount() {
         navigator.geolocation.clearWatch(this.watchID);
+    }
+    marker() {
+        console.log(this.state.region.latitude)
+        return {
+            latitude: this.state.region.latitude,
+            longitude: this.state.region.longitude,
+        }
     }
     render() {
         return (
             <MapView
                 provider={PROVIDER_GOOGLE}
+                zoomControlEnabled={true}
                 zoomEnabled={true}
-                style={styles.container}
+                maxZoomLevel={18}
+                style={styles.map}
                 showsUserLocation={true}
                 region={this.state.region}
-                onRegionChange={region => this.setState({ region })}
-                onRegionChangeComplete={region => this.setState({ region })}
             >
                 <MapView.Marker
-                    coordinate={this.state.region}
+                    coordinate={this.marker()}
                 />
             </MapView>
         );
     }
 }
+
 const styles = StyleSheet.create({
-    container: {
-        // ...StyleSheet.absoluteFillObject,
-        height: '100%',
-        width: '100%',
-    }
-});
+    map: { width: '100%', height: height },
+})
